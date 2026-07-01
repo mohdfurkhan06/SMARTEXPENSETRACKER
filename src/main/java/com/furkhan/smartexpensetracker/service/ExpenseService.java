@@ -3,6 +3,7 @@ package com.furkhan.smartexpensetracker.service;
 import com.furkhan.smartexpensetracker.dto.CategorySummary;
 import com.furkhan.smartexpensetracker.dto.DashboardSummary;
 import com.furkhan.smartexpensetracker.dto.ExpenseRequest;
+import com.furkhan.smartexpensetracker.dto.ExpenseResponse;
 import com.furkhan.smartexpensetracker.dto.ExpenseStatistics;
 import com.furkhan.smartexpensetracker.dto.MonthlySummary;
 import com.furkhan.smartexpensetracker.entity.Expense;
@@ -17,6 +18,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+
+
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -59,17 +62,22 @@ public class ExpenseService {
         return "Expense added successfully";
     }
 
-    public List<Expense> getMyExpenses() {
+   
+    public List<ExpenseResponse> getMyExpenses() {
 
-        String email = SecurityContextHolder.getContext()
-                .getAuthentication()
-                .getName();
+    String email = SecurityContextHolder.getContext()
+            .getAuthentication()
+            .getName();
 
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+    User user = userRepository.findByEmail(email)
+            .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        return expenseRepository.findByUser(user);
-    }
+    return expenseRepository.findByUser(user)
+            .stream()
+            .map(this::mapToResponse)
+            .toList();
+
+}
 
     public String updateExpense(Long id, ExpenseRequest request) {
 
@@ -168,19 +176,24 @@ public class ExpenseService {
         return result;
     }
 
-    public List<Expense> searchExpenses(String keyword) {
+    
+    public List<ExpenseResponse> searchExpenses(String keyword) {
 
-        String email = SecurityContextHolder.getContext()
-                .getAuthentication()
-                .getName();
+    String email = SecurityContextHolder.getContext()
+            .getAuthentication()
+            .getName();
 
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+    User user = userRepository.findByEmail(email)
+            .orElseThrow(() -> new RuntimeException("User not found"));
 
-        return expenseRepository.findByUserAndTitleContainingIgnoreCase(user, keyword);
-    }
+    return expenseRepository.findByUserAndTitleContainingIgnoreCase(user, keyword)
+            .stream()
+            .map(this::mapToResponse)
+            .toList();
 
-    public List<Expense> filterExpenses(LocalDate startDate,
+}
+
+    public List<ExpenseResponse> filterExpenses(LocalDate startDate,
                                         LocalDate endDate) {
 
         String email = SecurityContextHolder.getContext()
@@ -193,7 +206,11 @@ public class ExpenseService {
         return expenseRepository.findByUserAndExpenseDateBetween(
                 user,
                 startDate,
-                endDate);
+                endDate)
+                 .stream()
+            .map(this::mapToResponse)
+            .toList();
+
     }
 
     public Page<Expense> getExpensesPaginated(int page, int size) {
@@ -210,7 +227,7 @@ public class ExpenseService {
         return expenseRepository.findByUser(user, pageable);
     }
 
-    public List<Expense> getExpensesSorted(String sortBy) {
+    public List<ExpenseResponse> getExpensesSorted(String sortBy) {
 
         String email = SecurityContextHolder.getContext()
                 .getAuthentication()
@@ -221,10 +238,14 @@ public class ExpenseService {
 
         return expenseRepository.findByUser(
                 user,
-                Sort.by(sortBy).ascending());
+                Sort.by(sortBy).ascending())
+                  .stream()
+            .map(this::mapToResponse)
+            .toList();
+
     }
 
-    public List<Expense> filterByCategory(String category) {
+    public List<ExpenseResponse> filterByCategory(String category) {
 
         String email = SecurityContextHolder.getContext()
                 .getAuthentication()
@@ -233,10 +254,13 @@ public class ExpenseService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        return expenseRepository.findByUserAndCategoryIgnoreCase(user, category);
+        return expenseRepository.findByUserAndCategoryIgnoreCase(user, category)
+        .stream()
+            .map(this::mapToResponse)
+            .toList();
     }
 
-    public List<Expense> filterByAmount(Double minAmount,
+    public List<ExpenseResponse> filterByAmount(Double minAmount,
                                         Double maxAmount) {
 
         String email = SecurityContextHolder.getContext()
@@ -249,7 +273,10 @@ public class ExpenseService {
         return expenseRepository.findByUserAndAmountBetween(
                 user,
                 minAmount,
-                maxAmount);
+                maxAmount)
+                .stream()
+            .map(this::mapToResponse)
+            .toList();
     }
 
     public ExpenseStatistics getExpenseStatistics() {
@@ -266,4 +293,32 @@ public class ExpenseService {
                 expenseRepository.getLowestExpense(user),
                 expenseRepository.getAverageExpense(user));
     }
+    public String deleteExpense(Long id) {
+
+    String email = SecurityContextHolder.getContext()
+            .getAuthentication()
+            .getName();
+
+    User user = userRepository.findByEmail(email)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+
+    Expense expense = expenseRepository.findByIdAndUser(id, user)
+            .orElseThrow(() -> new ResourceNotFoundException("Expense not found"));
+
+    expenseRepository.delete(expense);
+
+    return "Expense deleted successfully";
+}
+private ExpenseResponse mapToResponse(Expense expense) {
+
+    return new ExpenseResponse(
+            expense.getId(),
+            expense.getTitle(),
+            expense.getAmount(),
+            expense.getCategory(),
+            expense.getExpenseDate(),
+            expense.getDescription()
+    );
+
+}
 }

@@ -1,10 +1,13 @@
 package com.furkhan.smartexpensetracker.service;
 
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.furkhan.smartexpensetracker.dto.LoginRequest;
+import com.furkhan.smartexpensetracker.dto.ProfileResponse;
 import com.furkhan.smartexpensetracker.dto.RegisterRequest;
+import com.furkhan.smartexpensetracker.dto.UpdateProfileRequest;
 import com.furkhan.smartexpensetracker.entity.User;
 import com.furkhan.smartexpensetracker.exception.UnauthorizedException;
 import com.furkhan.smartexpensetracker.repository.UserRepository;
@@ -54,5 +57,42 @@ public class UserService {
         String token = jwtService.generateToken(user.getEmail());
 
         return new ApiResponse<>(true, "Login successful", token);
+    }
+    public ProfileResponse getProfile()
+    {
+       String email = SecurityContextHolder.getContext()
+        .getAuthentication()
+        .getName();
+
+User user = userRepository.findByEmail(email)
+        .orElseThrow(() -> new RuntimeException("User not found"));
+
+return new ProfileResponse(
+        user.getName(),
+        user.getEmail()
+); 
+    }
+    public String updateProfile(UpdateProfileRequest request)
+    {
+        String email = SecurityContextHolder.getContext()
+        .getAuthentication()
+        .getName();
+
+User user = userRepository.findByEmail(email)
+        .orElseThrow(() -> new RuntimeException("User not found"));
+
+user.setName(request.getName());
+
+if(request.getPassword()!=null && !request.getPassword().isBlank()){
+
+    user.setPassword(
+        passwordEncoder.encode(request.getPassword())
+    );
+
+}
+
+userRepository.save(user);
+
+return "Profile updated successfully";
     }
 }

@@ -1,76 +1,64 @@
 package com.furkhan.smartexpensetracker.exception;
 
+import com.furkhan.smartexpensetracker.response.ApiResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
-import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.validation.FieldError;
-import java.util.List;
-import java.util.stream.Collectors;
+
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<Map<String, Object>> handleResourceNotFound(
+    public ResponseEntity<ApiResponse<String>> handleResourceNotFound(
             ResourceNotFoundException ex) {
 
-        Map<String, Object> response = new HashMap<>();
-
-        response.put("timestamp", LocalDateTime.now());
-        response.put("status", HttpStatus.NOT_FOUND.value());
-        response.put("error", "Not Found");
-        response.put("message", ex.getMessage());
-
-        return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ApiResponse<>(
+                        false,
+                        ex.getMessage(),
+                        null
+                ));
     }
 
-    @ExceptionHandler(UnauthorizedException.class)
-    public ResponseEntity<Map<String, Object>> handleUnauthorized(
-            UnauthorizedException ex) {
-
-        Map<String, Object> response = new HashMap<>();
-
-        response.put("timestamp", LocalDateTime.now());
-        response.put("status", HttpStatus.UNAUTHORIZED.value());
-        response.put("error", "Unauthorized");
-        response.put("message", ex.getMessage());
-
-        return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
-    }
     @ExceptionHandler(MethodArgumentNotValidException.class)
-public ResponseEntity<Map<String, Object>> handleValidationException(
-        MethodArgumentNotValidException ex) {
+    public ResponseEntity<ApiResponse<Map<String, String>>> handleValidation(
+            MethodArgumentNotValidException ex) {
 
-    Map<String, Object> response = new HashMap<>();
+        Map<String, String> errors = new HashMap<>();
 
-    List<String> errors = ex.getBindingResult()
-            .getFieldErrors()
-            .stream()
-            .map(FieldError::getDefaultMessage)
-            .collect(Collectors.toList());
+        for (FieldError error : ex.getBindingResult().getFieldErrors()) {
 
-    response.put("timestamp", LocalDateTime.now());
-    response.put("status", HttpStatus.BAD_REQUEST.value());
-    response.put("error", "Validation Failed");
-    response.put("messages", errors);
+            errors.put(
+                    error.getField(),
+                    error.getDefaultMessage()
+            );
 
-    return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
-}
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<Map<String, Object>> handleException(Exception ex) {
+        }
 
-        Map<String, Object> response = new HashMap<>();
-
-        response.put("timestamp", LocalDateTime.now());
-        response.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value());
-        response.put("error", "Internal Server Error");
-        response.put("message", ex.getMessage());
-
-        return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+        return ResponseEntity.badRequest()
+                .body(new ApiResponse<>(
+                        false,
+                        "Validation Failed",
+                        errors
+                ));
     }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ApiResponse<String>> handleException(
+            Exception ex) {
+
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ApiResponse<>(
+                        false,
+                        ex.getMessage(),
+                        null
+                ));
+    }
+
 }
